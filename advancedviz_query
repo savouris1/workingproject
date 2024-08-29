@@ -1,0 +1,35 @@
+/*
+I used the following query as the base of my exploration of the voter demographics and vote history data.
+This query was originally going to be used to connect on county to CVAP numbers from the American Community Survey  to do an unregistered by race analysis.
+When that ended up being more time that I had for this project, I modified from there.
+This query was used to source most of the tables in my report.
+*/
+
+select
+d.County,
+d.CD,
+d.RaceName,
+d.Party,
+case
+  when d.Age between 18 and 25 then '18-25'
+  when d.Age between 25 and 35 then '25-35'
+  when d.Age between 35 and 45 then '35-45'
+  when d.Age between 45 and 55 then '45-55'
+  when d.Age between 55 and 65 then '55-65'
+  when d.Age >65 then '65+'
+  else 'unknown' end as age_blocks,
+--I wanted to create categories that were as even as possible while recognizing that the minimum voting age does not fall on a multiple of 5. 
+--so these buckets were the closest I could get without getting so micro as to be useless and overwhelming when visualizing
+count(case when d.General20 IN ("M","E","P", "A","Y") then Voter_File_VANID else null end) as voted_G20,
+count(case when d.General22 IN ("M","E","P", "A","Y") then Voter_File_VANID else null end) as voted_G22,
+count (distinct d.Voter_File_VANID) as count_voters,
+--used a count of VANID here instead of DWID because VANID is present in both the demographics and score tables
+avg(m.vote_prop2024) as avg_turnout_score
+
+from `prod-generation-data-176bffe6.voterfile_ok.voterfile_demographics_ok` d
+left join `prod-generation-data-176bffe6.voterfile_ok.modelscores_ok` m on m.VANID = d.Voter_File_VANID
+
+where county != 'null'
+
+group by 1,2,3,4,5
+order by 1,3
